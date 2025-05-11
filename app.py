@@ -46,15 +46,20 @@ def call_stock(stock_id):
         res = requests.get(url)
         info = res.json()["msgArray"][0]
 
-        name = info["n"]                     # 股票名稱
-        open_price = info["o"]               # 開盤價
-        now_price = info["z"]                # 即時成交價
-        change_price = info["ch"]            # 漲跌金額
-        change_percent = info["y"]           # 昨日收盤價（可用來算漲跌幅）
+        name = info["n"]
+        open_price = info["o"]
+        now_price = info["z"]
+        change_price = info["ch"]
+        prev_close = float(info["y"])  # 昨收
+        now_price_val = float(now_price)
 
-        return f"📈 {name} ({stock_id})\n- 開盤：{open_price} 元\n- 現價：{now_price} 元\n- 漲跌：{change_price} 元"
-    except:
+        # 計算漲跌百分比
+        change_percent = f"{((now_price_val - prev_close) / prev_close) * 100:.2f}%"
+
+        return f"📈 {name} ({stock_id})\n- 開盤：{open_price} 元\n- 現價：{now_price} 元\n- 漲跌：{change_price} 元（{change_percent}）"
+    except Exception as e:
         return "⚠️ 無法取得股票資訊，請確認股票代碼是否正確（如：2330）"
+
 
 
 def save_history(user_id, user_msg, bot_reply):
