@@ -87,14 +87,28 @@ def handle_message(event):
     user_id = event.source.user_id
     msg = event.message
 
-    if isinstance(msg, TextMessage):
-        user_msg = msg.text
-        if "天氣" in user_msg:
-            loc = user_msg.replace("天氣", "").strip()
-            loc = loc if loc else "台北市"
-            bot_reply = call_weather(loc)
-        else:
-            bot_reply = call_gemini(user_msg)
+   # 地名轉換表
+CITY_MAP = {
+    "台北": "台北市", "新北": "新北市", "台中": "台中市",
+    "台南": "台南市", "高雄": "高雄市", "桃園": "桃園市",
+    "新竹": "新竹市", "嘉義": "嘉義市", "宜蘭": "宜蘭縣",
+    "花蓮": "花蓮縣", "台東": "台東縣", "雲林": "雲林縣",
+    "彰化": "彰化縣", "南投": "南投縣", "苗栗": "苗栗縣",
+    "基隆": "基隆市"
+}
+
+# 處理天氣查詢
+if "天氣" in user_msg:
+    loc = user_msg.replace("天氣", "").replace("的", "").strip()
+    for key in CITY_MAP:
+        if key in loc:
+            loc = CITY_MAP[key]
+            break
+    else:
+        loc = "台北市"  # 沒有比對到就預設台北市
+
+    bot_reply = call_weather(loc)
+
 
         line_bot_api.reply_message(event.reply_token, TextSendMessage(bot_reply))
         save_history(user_id, user_msg, bot_reply)
