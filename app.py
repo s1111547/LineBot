@@ -74,12 +74,6 @@ def call_stock(stock_id):
     except:
         return "⚠️ 無法取得股票資訊，請稍後再試"
 
-
-
-
-
-
-
 def save_history(user_id, user_msg, bot_reply):
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     record = {
