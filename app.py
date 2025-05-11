@@ -39,7 +39,7 @@ def call_gemini(prompt):
             return f"❌ Gemini API 錯誤：{res.status_code}\n{res.text}"
     except Exception as e:
         return f"❌ 錯誤：{str(e)}"
-
+        
 def call_stock(stock_id):
     try:
         url = f"https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=tse_{stock_id}.tw&json=1&delay=0"
@@ -49,16 +49,17 @@ def call_stock(stock_id):
         name = info["n"]
         open_price = info["o"]
         now_price = info["z"]
-        change_price = info["ch"]
-        prev_close = float(info["y"])  # 昨收
-        now_price_val = float(now_price)
+        prev_close = float(info["y"])  # 昨收價
+        now = float(now_price)
 
-        # 計算漲跌百分比
-        change_percent = f"{((now_price_val - prev_close) / prev_close) * 100:.2f}%"
+        # ✅ 漲跌百分比計算
+        percent = ((now - prev_close) / prev_close) * 100
+        percent_str = f"{percent:+.2f}%"  # 例如 +1.23%
 
-        return f"📈 {name} ({stock_id})\n- 開盤：{open_price} 元\n- 現價：{now_price} 元\n- 漲跌：{change_price} 元（{change_percent}）"
+        return f"📈 {name} ({stock_id})\\n- 開盤：{open_price} 元\\n- 現價：{now_price} 元\\n- 漲跌幅：{percent_str}"
     except Exception as e:
         return "⚠️ 無法取得股票資訊，請確認股票代碼是否正確（如：2330）"
+
 
 
 
