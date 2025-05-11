@@ -40,25 +40,30 @@ def call_gemini(prompt):
     except Exception as e:
         return f"❌ 錯誤：{str(e)}"
         
+# 改成這樣的方式自動選擇上市或上櫃
 def call_stock(stock_id):
     try:
+        # 嘗試先用上市（tse）
         url = f"https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=tse_{stock_id}.tw&json=1&delay=0"
         res = requests.get(url)
-        info = res.json()["msgArray"][0]
+        data = res.json()
+        
+        # 如果查不到就改用上櫃（otc）
+        if not data["msgArray"]:
+            url = f"https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=otc_{stock_id}.tw&json=1&delay=0"
+            res = requests.get(url)
+            data = res.json()
 
+        info = data["msgArray"][0]
         name = info["n"]
         open_price = info["o"]
         now_price = info["z"]
-        prev_close = float(info["y"])  # 昨收價
-        now = float(now_price)
+        change_percent = info["y"]  # 前收價
 
-        # ✅ 漲跌百分比計算
-        percent = ((now - prev_close) / prev_close) * 100
-        percent_str = f"{percent:+.2f}%"  # 例如 +1.23%
-
-        return f"📈 {name} ({stock_id})\\n- 開盤：{open_price} 元\\n- 現價：{now_price} 元\\n- 漲跌幅：{percent_str}"
-    except Exception as e:
+        return f"📈 {name} ({stock_id})\n- 開盤：{open_price} 元\n- 現價：{now_price} 元"
+    except:
         return "⚠️ 無法取得股票資訊，請確認股票代碼是否正確（如：2330）"
+
 
 
 
