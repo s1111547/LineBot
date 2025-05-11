@@ -40,23 +40,18 @@ def call_gemini(prompt):
     except Exception as e:
         return f"❌ 錯誤：{str(e)}"
 
-def call_weather(location_name):
+def call_stock(stock_id):
     try:
-        url = "https://opendata.cwa.gov.tw/api/v1/rest/datastore/F-C0032-001"
-        params = {
-            "Authorization": "CWA-97E0911B-BE84-4E57-9338-EA5797B5C0AB",
-            "locationName": location_name,
-            "format": "JSON"
-        }
-        res = requests.get(url, params=params)
-        data = res.json()["records"]["location"][0]["weatherElement"]
-        wx = data[0]["time"][0]["parameter"]["parameterName"]
-        pop = data[1]["time"][0]["parameter"]["parameterName"] + "%"
-        minT = data[2]["time"][0]["parameter"]["parameterName"]
-        maxT = data[4]["time"][0]["parameter"]["parameterName"]
-        return f"🌤️ {location_name}天氣預報：\n- 狀況：{wx}\n- 降雨機率：{pop}\n- 溫度：{minT} ~ {maxT}°C\n資料來源：中央氣象局"
+        url = f"https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=tse_{stock_id}.tw&json=1&delay=0"
+        res = requests.get(url)
+        info = res.json()["msgArray"][0]
+        name = info["n"]
+        open_price = info["o"]
+        now_price = info["z"]
+        change = info["c"]
+        return f"\U0001F4C8 {name} ({stock_id})\n- 開盤：{open_price} 元\n- 現價：{now_price} 元\n- 漲跌：{change} 元"
     except:
-        return "⚠️ 無法取得天氣資訊，請確認城市名稱是否正確（如：台北市）"
+        return "⚠️ 無法取得股票資訊，請確認股票代碼是否正確（如：2330）"
 
 def save_history(user_id, user_msg, bot_reply):
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -87,28 +82,12 @@ def handle_message(event):
     user_id = event.source.user_id
     msg = event.message
 
-    # 城市映射
-    CITY_MAP = {
-        "台北": "台北市", "新北": "新北市", "台中": "台中市",
-        "台南": "台南市", "高雄": "高雄市", "桃園": "桃園市",
-        "新竹": "新竹市", "嘉義": "嘉義市", "宜蘭": "宜蘭縣",
-        "花蓮": "花蓮縣", "台東": "台東縣", "雲林": "雲林縣",
-        "彰化": "彰化縣", "南投": "南投縣", "苗栗": "苗栗縣",
-        "基隆": "基隆市"
-    }
-
     if isinstance(msg, TextMessage):
         user_msg = msg.text
 
-        if "天氣" in user_msg:
-            loc = user_msg.replace("天氣", "").replace("的", "").strip()
-            for key in CITY_MAP:
-                if key in loc:
-                    loc = CITY_MAP[key]
-                    break
-            else:
-                loc = "台北市"
-            bot_reply = call_weather(loc)
+        if user_msg.startswith("查詢"):
+            stock_id = user_msg.replace("查詢", "").strip()
+            bot_reply = call_stock(stock_id)
         else:
             bot_reply = call_gemini(user_msg)
 
