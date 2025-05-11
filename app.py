@@ -35,16 +35,13 @@ def call_gemini(prompt):
     import requests
     import os
 
-    url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent"
     api_key = os.getenv("GEMINI_API_KEY")
-
     if not api_key:
         return "❌ 找不到 GEMINI_API_KEY，請確認已在 Render 設定環境變數"
 
-    headers = {
-        "Content-Type": "application/json"
-    }
+    url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-pro:generateContent?key={api_key}"
 
+    headers = {"Content-Type": "application/json"}
     data = {
         "contents": [
             {
@@ -56,20 +53,14 @@ def call_gemini(prompt):
     }
 
     try:
-        response = requests.post(
-            f"{url}?key={api_key}",
-            headers=headers,
-            json=data
-        )
-
+        response = requests.post(url, headers=headers, json=data)
         if response.status_code == 200:
-            res_json = response.json()
-            return res_json["candidates"][0]["content"]["parts"][0]["text"]
+            result = response.json()
+            return result["candidates"][0]["content"]["parts"][0]["text"]
         else:
             return f"❌ Gemini API 錯誤：{response.status_code}\n{response.text}"
-
     except Exception as e:
-        return f"❌ 程式執行錯誤：{str(e)}"
+        return f"❌ 系統錯誤：{str(e)}"
 
 @app.route("/callback", methods=['POST'])
 def callback():
