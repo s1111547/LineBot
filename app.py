@@ -31,22 +31,45 @@ def save_history(history):
         json.dump(history, f, indent=2)
 
 
-def call_gemini(user_input):
-    url = "https://generativelanguage.googleapis.com/v1beta2/models/text-bison-001:generateText"
-    headers = {"Content-Type": "application/json"}
-    params = {"key": GEMINI_API_KEY}
-    data = {
-        "prompt": {"text": user_input},
-        "temperature": 0.7
+def call_gemini(prompt):
+    import requests
+    import os
+
+    url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent"
+    api_key = os.getenv("GEMINI_API_KEY")
+
+    if not api_key:
+        return "❌ 找不到 GEMINI_API_KEY，請確認已在 Render 設定環境變數"
+
+    headers = {
+        "Content-Type": "application/json"
     }
+
+    data = {
+        "contents": [
+            {
+                "parts": [
+                    {"text": prompt}
+                ]
+            }
+        ]
+    }
+
     try:
-        response = requests.post(url, headers=headers, params=params, json=data)
+        response = requests.post(
+            f"{url}?key={api_key}",
+            headers=headers,
+            json=data
+        )
+
         if response.status_code == 200:
-            return response.json()["candidates"][0]["output"]
+            res_json = response.json()
+            return res_json["candidates"][0]["content"]["parts"][0]["text"]
         else:
-            return "Gemini API 發生錯誤。"
-    except:
-        return "呼叫 Gemini 失敗。"
+            return f"❌ Gemini API 錯誤：{response.status_code}\n{response.text}"
+
+    except Exception as e:
+        return f"❌ 程式執行錯誤：{str(e)}"
 
 @app.route("/callback", methods=['POST'])
 def callback():
