@@ -48,7 +48,7 @@ def call_stock(stock_id):
         name = info["n"]
         open_price = info["o"]
         now_price = info["z"]
-        change = info["c"]
+        change = info["ch"]
         return f"\U0001F4C8 {name} ({stock_id})\n- 開盤：{open_price} 元\n- 現價：{now_price} 元\n- 漲跌：{change} 元"
     except:
         return "⚠️ 無法取得股票資訊，請確認股票代碼是否正確（如：2330）"
