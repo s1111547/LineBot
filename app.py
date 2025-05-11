@@ -1,9 +1,14 @@
-from flask import Flask, request, jsonify
-from linebot import LineBotApi, WebhookHandler
-from linebot.models import MessageEvent, TextMessage, TextSendMessage
-import requests
+from flask import Flask, request, abort, jsonify
+from datetime import datetime
 import json
 import os
+import requests
+from linebot import LineBotApi, WebhookHandler
+from linebot.exceptions import InvalidSignatureError
+from linebot.models import (
+    MessageEvent, TextMessage, StickerMessage, ImageMessage,
+    LocationMessage, VideoMessage, TextSendMessage
+)
 
 app = Flask(__name__)
 
@@ -15,90 +20,85 @@ GEMINI_API_KEY = "AIzaSyD40Whl7xpRFjtyqpqBFge3z3WDVcF85O0"
 line_bot_api = LineBotApi(LINE_CHANNEL_ACCESS_TOKEN)
 handler = WebhookHandler(LINE_CHANNEL_SECRET)
 
-HISTORY_FILE = "history.json"
+HISTORY_PATH = "history.json"
 
-# 初始化歷史紀錄
-if not os.path.exists(HISTORY_FILE):
-    with open(HISTORY_FILE, "w") as f:
-        json.dump([], f)
-
-def load_history():
-    with open(HISTORY_FILE, "r") as f:
-        return json.load(f)
-
-def save_history(history):
-    with open(HISTORY_FILE, "w") as f:
-        json.dump(history, f, indent=2)
-
+if not os.path.exists(HISTORY_PATH):
+    with open(HISTORY_PATH, "w", encoding="utf-8") as f:
+        json.dump([], f, ensure_ascii=False, indent=2)
 
 def call_gemini(prompt):
-    import requests
-    import os
-
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key:
-        return "❌ 找不到 GEMINI_API_KEY，請確認已在 Render 設定環境變數"
-
-    url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-pro:generateContent?key={api_key}"
-
+    url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-pro:generateContent?key={GEMINI_API_KEY}"
     headers = {"Content-Type": "application/json"}
     data = {
-        "contents": [
-            {
-                "parts": [
-                    {"text": prompt}
-                ]
-            }
-        ]
+        "contents": [{"parts": [{"text": prompt}]}]
     }
-
     try:
-        response = requests.post(url, headers=headers, json=data)
-        if response.status_code == 200:
-            result = response.json()
-            return result["candidates"][0]["content"]["parts"][0]["text"]
+        res = requests.post(url, headers=headers, json=data)
+        if res.status_code == 200:
+            return res.json()["candidates"][0]["content"]["parts"][0]["text"]
         else:
-            return f"❌ Gemini API 錯誤：{response.status_code}\n{response.text}"
+            return f"❌ Gemini API 錯誤：{res.status_code}\n{res.text}"
     except Exception as e:
-        return f"❌ 系統錯誤：{str(e)}"
+        return f"❌ 錯誤：{str(e)}"
 
-@app.route("/callback", methods=['POST'])
+def save_history(user_id, user_msg, bot_reply):
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    record = {
+        "user_id": user_id,
+        "user_msg": user_msg,
+        "bot_reply": bot_reply,
+        "timestamp": now
+    }
+    with open(HISTORY_PATH, "r+", encoding="utf-8") as f:
+        data = json.load(f)
+        data.append(record)
+        f.seek(0)
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+@app.route("/callback", methods=["POST"])
 def callback():
-    signature = request.headers['X-Line-Signature']
+    signature = request.headers["X-Line-Signature"]
     body = request.get_data(as_text=True)
     try:
         handler.handle(body, signature)
-    except Exception as e:
-        return str(e)
-    return 'OK'
+    except InvalidSignatureError:
+        abort(400)
+    return "OK"
 
-@handler.add(MessageEvent, message=TextMessage)
+@handler.add(MessageEvent)
 def handle_message(event):
-    user_msg = event.message.text
     user_id = event.source.user_id
+    msg_type = event.message
 
-    # 呼叫 Gemini API 回應
-    ai_response = call_gemini(user_msg)
+    if isinstance(msg_type, TextMessage):
+        user_msg = msg_type.text
+        bot_reply = call_gemini(user_msg)
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(bot_reply))
+        save_history(user_id, user_msg, bot_reply)
 
-    # 回覆訊息
-    line_bot_api.reply_message(
-        event.reply_token,
-        TextSendMessage(text=ai_response)
-    )
+    elif isinstance(msg_type, StickerMessage):
+        line_bot_api.reply_message(event.reply_token, TextSendMessage("收到貼圖 👍"))
 
-    # 儲存對話紀錄
-    history = load_history()
-    history.append({"user": user_msg, "bot": ai_response})
-    save_history(history)
+    elif isinstance(msg_type, ImageMessage):
+        line_bot_api.reply_message(event.reply_token, TextSendMessage("收到圖片 📷"))
 
-@app.route("/history", methods=["GET"])
-def get_history():
-    return jsonify(load_history())
+    elif isinstance(msg_type, VideoMessage):
+        line_bot_api.reply_message(event.reply_token, TextSendMessage("收到影片 🎥"))
 
-@app.route("/history", methods=["DELETE"])
-def delete_history():
-    save_history([])
-    return jsonify({"status": "deleted"})
+    elif isinstance(msg_type, LocationMessage):
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(f"收到位置：{msg_type.address}"))
+
+@app.route("/history", methods=["GET", "DELETE"])
+def manage_history():
+    if request.method == "GET":
+        with open(HISTORY_PATH, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return jsonify(data)
+
+    elif request.method == "DELETE":
+        with open(HISTORY_PATH, "w", encoding="utf-8") as f:
+            json.dump([], f, ensure_ascii=False, indent=2)
+        return jsonify({"message": "歷史紀錄已清空"}), 200
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
+    app.run()
