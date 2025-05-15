@@ -6,7 +6,7 @@
 - 股票查詢（輸入：查詢2330）
 - 儲存歷史訊息、GET/DELETE API
 - 支援圖片、貼圖、影片、位置訊息
-- Render 雲端部署
+- Render 雲端部署(第一次回覆須等一段時間股票也是等他開機)
 
 ## 🔗 測試網址
 Render Webhook：https://linebot-2jq4.onrender.com/callback  
