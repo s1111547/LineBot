@@ -7,7 +7,8 @@ from linebot import LineBotApi, WebhookHandler
 from linebot.exceptions import InvalidSignatureError
 from linebot.models import (
     MessageEvent, TextMessage, StickerMessage, ImageMessage,
-    LocationMessage, VideoMessage, TextSendMessage
+    LocationMessage, VideoMessage, TextSendMessage, StickerSendMessage,
+    ImageSendMessage, VideoSendMessage, LocationSendMessage, FlexSendMessage
 )
 
 app = Flask(__name__)
@@ -28,9 +29,7 @@ if not os.path.exists(HISTORY_PATH):
 def call_gemini(prompt):
     url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-pro:generateContent?key={GEMINI_API_KEY}"
     headers = {"Content-Type": "application/json"}
-    data = {
-        "contents": [{"parts": [{"text": prompt}]}]
-    }
+    data = {"contents": [{"parts": [{"text": prompt}]}]}
     try:
         res = requests.post(url, headers=headers, json=data)
         if res.status_code == 200:
@@ -39,20 +38,16 @@ def call_gemini(prompt):
             return f"❌ Gemini API 錯誤：{res.status_code}\n{res.text}"
     except Exception as e:
         return f"❌ 錯誤：{str(e)}"
-        
+
 def call_stock(stock_id):
     try:
-        # 嘗試查詢上市 (TWSE)
         url = f"https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=tse_{stock_id}.tw&json=1&delay=0"
         res = requests.get(url)
         data = res.json()
-
-        # 若找不到，再查詢上櫃 (OTC)
         if not data["msgArray"]:
             url = f"https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=otc_{stock_id}.tw&json=1&delay=0"
             res = requests.get(url)
             data = res.json()
-
         if not data["msgArray"]:
             return "⚠️ 查無此股票代碼，請確認是否正確（如：2330）"
 
@@ -62,19 +57,14 @@ def call_stock(stock_id):
         now_price = info["z"]
         yesterday_price = info["y"]
 
-        # 避免無效資料（例如 "--"）
         if now_price == "--" or yesterday_price == "--":
             return f"📈 {name} ({stock_id})\n- 開盤：{open_price} 元\n- 現價：{now_price} 元\n- ⚠️ 無法計算漲跌幅"
 
-        # 計算漲跌百分比
         change_percent = ((float(now_price) - float(yesterday_price)) / float(yesterday_price)) * 100
         change_symbol = "+" if change_percent >= 0 else ""
-
         return f"📈 {name} ({stock_id})\n- 開盤：{open_price} 元\n- 現價：{now_price} 元\n- 漲跌幅：{change_symbol}{change_percent:.2f}%"
     except:
         return "⚠️ 無法取得股票資訊，請稍後再試"
-
-
 
 def save_history(user_id, user_msg, bot_reply):
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -106,28 +96,62 @@ def handle_message(event):
     msg = event.message
 
     if isinstance(msg, TextMessage):
-        user_msg = msg.text
+        user_msg = msg.text.strip().lower()
 
         if user_msg.startswith("查詢"):
             stock_id = user_msg.replace("查詢", "").strip()
             bot_reply = call_stock(stock_id)
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(bot_reply))
+            save_history(user_id, user_msg, bot_reply)
+
+        elif user_msg in ["貼圖", "sticker"]:
+            line_bot_api.reply_message(event.reply_token, StickerSendMessage(package_id="1", sticker_id="2"))
+
+        elif user_msg in ["圖片", "image"]:
+            line_bot_api.reply_message(event.reply_token, ImageSendMessage(
+                original_content_url="https://i.imgur.com/G7PVYLF.jpg",
+                preview_image_url="https://i.imgur.com/G7PVYLF.jpg"
+            ))
+
+        elif user_msg in ["影片", "video"]:
+            line_bot_api.reply_message(event.reply_token, VideoSendMessage(
+                original_content_url="https://download.samplelib.com/mp4/sample-5s.mp4",
+                preview_image_url="https://i.imgur.com/G7PVYLF.jpg"
+            ))
+
+        elif user_msg in ["位置", "location"]:
+            line_bot_api.reply_message(event.reply_token, LocationSendMessage(
+                title="台大資工系館",
+                address="台北市大安區羅斯福路四段1號",
+                latitude=25.0173405,
+                longitude=121.5397519
+            ))
+
+        elif user_msg in ["flex"]:
+            flex_content = {
+                "type": "bubble",
+                "hero": {
+                    "type": "image",
+                    "url": "https://i.imgur.com/G7PVYLF.jpg",
+                    "size": "full",
+                    "aspectRatio": "20:13",
+                    "aspectMode": "cover"
+                },
+                "body": {
+                    "type": "box",
+                    "layout": "vertical",
+                    "contents": [
+                        {"type": "text", "text": "這是 Flex Message", "weight": "bold", "size": "xl"},
+                        {"type": "text", "text": "支援圖片與樣式排版！", "size": "md", "color": "#666666"}
+                    ]
+                }
+            }
+            line_bot_api.reply_message(event.reply_token, FlexSendMessage("Flex 範例", flex_content))
+
         else:
             bot_reply = call_gemini(user_msg)
-
-        line_bot_api.reply_message(event.reply_token, TextSendMessage(bot_reply))
-        save_history(user_id, user_msg, bot_reply)
-
-    elif isinstance(msg, StickerMessage):
-        line_bot_api.reply_message(event.reply_token, TextSendMessage("收到貼圖 👍"))
-
-    elif isinstance(msg, ImageMessage):
-        line_bot_api.reply_message(event.reply_token, TextSendMessage("收到圖片 📷"))
-
-    elif isinstance(msg, VideoMessage):
-        line_bot_api.reply_message(event.reply_token, TextSendMessage("收到影片 🎥"))
-
-    elif isinstance(msg, LocationMessage):
-        line_bot_api.reply_message(event.reply_token, TextSendMessage(f"收到位置：{msg.address}"))
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(bot_reply))
+            save_history(user_id, user_msg, bot_reply)
 
 @app.route("/history", methods=["GET", "DELETE"])
 def manage_history():
