@@ -107,12 +107,11 @@ def handle_message(event):
         elif user_msg in ["貼圖", "sticker"]:
             line_bot_api.reply_message(event.reply_token, StickerSendMessage(package_id="1", sticker_id="2"))
 
-       elif user_msg in ["圖片", "image"]:
-    line_bot_api.reply_message(event.reply_token, ImageSendMessage(
-        original_content_url="https://i.imgur.com/uWg9ld2.jpg",  # ✅ 有效圖片
-        preview_image_url="https://i.imgur.com/uWg9ld2.jpg"
-    ))
-
+        elif user_msg in ["圖片", "image"]:
+            line_bot_api.reply_message(event.reply_token, ImageSendMessage(
+                original_content_url="https://i.imgur.com/G7PVYLF.jpg",
+                preview_image_url="https://i.imgur.com/G7PVYLF.jpg"
+            ))
 
         elif user_msg in ["影片", "video"]:
             line_bot_api.reply_message(event.reply_token, VideoSendMessage(
@@ -127,27 +126,6 @@ def handle_message(event):
                 latitude=25.0173405,
                 longitude=121.5397519
             ))
-
-        elif user_msg in ["flex"]:
-            flex_content = {
-                "type": "bubble",
-                "hero": {
-                    "type": "image",
-                    "url": "https://i.imgur.com/G7PVYLF.jpg",
-                    "size": "full",
-                    "aspectRatio": "20:13",
-                    "aspectMode": "cover"
-                },
-                "body": {
-                    "type": "box",
-                    "layout": "vertical",
-                    "contents": [
-                        {"type": "text", "text": "這是 Flex Message", "weight": "bold", "size": "xl"},
-                        {"type": "text", "text": "支援圖片與樣式排版！", "size": "md", "color": "#666666"}
-                    ]
-                }
-            }
-            line_bot_api.reply_message(event.reply_token, FlexSendMessage("Flex 範例", flex_content))
 
         else:
             bot_reply = call_gemini(user_msg)
