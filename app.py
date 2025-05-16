@@ -109,8 +109,8 @@ def handle_message(event):
 
         elif user_msg in ["圖片", "image"]:
             line_bot_api.reply_message(event.reply_token, ImageSendMessage(
-                original_content_url="https://i.imgur.com/G7PVYLF.jpg",
-                preview_image_url="https://i.imgur.com/G7PVYLF.jpg"
+                original_content_url="https://imagizer.imageshack.com/img924/1599/mdVSWW.jpg",
+                preview_image_url="https://imagizer.imageshack.com/img924/1599/mdVSWW.jpg"
             ))
 
         elif user_msg in ["影片", "video"]:
