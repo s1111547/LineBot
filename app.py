@@ -107,11 +107,12 @@ def handle_message(event):
         elif user_msg in ["貼圖", "sticker"]:
             line_bot_api.reply_message(event.reply_token, StickerSendMessage(package_id="1", sticker_id="2"))
 
-        elif user_msg in ["圖片", "image"]:
-            line_bot_api.reply_message(event.reply_token, ImageSendMessage(
-                original_content_url="https://i.imgur.com/G7PVYLF.jpg",
-                preview_image_url="https://i.imgur.com/G7PVYLF.jpg"
-            ))
+       elif user_msg in ["圖片", "image"]:
+    line_bot_api.reply_message(event.reply_token, ImageSendMessage(
+        original_content_url="https://i.imgur.com/uWg9ld2.jpg",  # ✅ 有效圖片
+        preview_image_url="https://i.imgur.com/uWg9ld2.jpg"
+    ))
+
 
         elif user_msg in ["影片", "video"]:
             line_bot_api.reply_message(event.reply_token, VideoSendMessage(
